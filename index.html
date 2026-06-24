@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Joy — Dream-First Planner</title>
+<style>
+  :root{
+    --bg:#0b0a0d; --panel:#161519; --panel-2:#1f1d24; --line:#2c2a33;
+    --txt:#f5f3f7; --txt-2:#a8a4b2; --txt-3:#6f6b7a;
+    --accent:#c4a0ff; --accent-deep:#7c3aed; --accent-soft:#241f38;
+    --good:#5ee0a8; --warn:#f5c451;
+    --serif:"Georgia","Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  button{color:var(--txt)}
+  body{background:var(--bg);color:var(--txt);font-family:var(--sans);line-height:1.5;
+    min-height:100vh;padding:36px 20px 90px}
+  .wrap{max-width:840px;margin:0 auto;transition:max-width .25s ease}
+  .stage-note{color:var(--txt-3);font-size:12px;margin-bottom:26px;text-align:center}
+
+  /* device preview toggle */
+  .device-bar{position:fixed;top:12px;right:12px;z-index:100;display:flex;gap:6px;
+    background:rgba(20,18,25,.9);border:1px solid var(--line);border-radius:999px;padding:5px;backdrop-filter:blur(8px)}
+  .device-bar button{background:none;border:none;color:var(--txt-2);font-size:12px;font-weight:600;
+    padding:6px 13px;border-radius:999px;cursor:pointer;font-family:inherit}
+  .device-bar button.on{background:var(--accent-deep);color:#fff}
+  body.mobile-preview .wrap{max-width:390px;border:1px solid var(--line);border-radius:28px;
+    padding:18px 16px 40px;margin-top:8px;box-shadow:0 0 0 8px #0e0d12, 0 24px 60px rgba(0,0,0,.5)}
+  body.mobile-preview .types{grid-template-columns:repeat(2,1fr)}
+  body.mobile-preview .board{grid-template-columns:repeat(2,1fr)}
+  body.mobile-preview .cards{grid-template-columns:1fr}
+  body.mobile-preview .ws{grid-template-columns:1fr}
+  body.mobile-preview .site-body{grid-template-columns:1fr}
+  body.mobile-preview .hero h1{font-size:26px}
+  body.mobile-preview .wvenues{grid-template-columns:1fr}
+  body.mobile-preview .freeform{flex-direction:column}
+  body.mobile-preview .freeform button{padding:12px}
+  body.mobile-preview .pq-cta{flex-direction:column;align-items:stretch;gap:10px}
+  body.mobile-preview .pq-free{max-width:none}
+  body.mobile-preview .ws-side{position:static}
+  /* mobile: turn the plan into a tab, not a long scroll below */
+  .mobile-only-tab{display:none}
+  body.mobile-preview .mobile-only-tab{display:inline-block}
+  body.mobile-preview .ws-side{display:none}
+  body.mobile-preview .ws{display:block}
+  .ws-plan-mobile .mp-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  .ws-plan-mobile .mp-title{font-family:var(--serif);font-size:18px}
+  .ws-plan-mobile .mp-count{font-size:12px;color:var(--txt-3)}
+  .ws-plan-mobile .sh-prog{height:6px;background:var(--panel-2);border-radius:99px;margin:0 0 14px;overflow:hidden}
+  .ws-plan-mobile .sh-bar{height:100%;background:linear-gradient(90deg,var(--accent-deep),var(--accent));border-radius:99px;transition:width .5s ease}
+  .ws-plan-mobile .mp-foot{margin-top:14px;font-size:12px;color:var(--txt-3);line-height:1.5}
+
+  /* ---------- SCREEN 1: PROMPT WITH DIRECTION ---------- */
+  .hero{text-align:center;margin-bottom:30px}
+  .hero h1{font-family:var(--serif);font-size:34px;font-weight:500;letter-spacing:-.01em;line-height:1.15}
+  .hero h1 em{font-style:italic;color:var(--accent)}
+  .hero .lede{color:var(--txt-2);font-size:15px;max-width:520px;margin:14px auto 0;line-height:1.55}
+  .how{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:18px auto 0;max-width:560px}
+  .how span{font-size:12px;color:var(--txt-2);background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:6px 13px}
+  .how b{color:var(--accent);font-weight:600}
+
+  .ask{text-align:center;margin:34px 0 16px;font-size:15px;color:var(--txt-2)}
+  .types{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  @media(max-width:640px){.types{grid-template-columns:repeat(2,1fr)}}
+  .type{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 10px;
+    cursor:pointer;transition:.16s;text-align:center}
+  .type:hover{border-color:var(--accent);transform:translateY(-2px);background:var(--panel-2)}
+  .type .ic{font-size:24px;display:block;margin-bottom:8px}
+  .type .nm{font-size:13px;font-weight:500}
+  .freeform{margin-top:14px;display:flex;gap:8px}
+  .freeform input{flex:1;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+    padding:13px 15px;color:var(--txt);font-size:14px;font-family:inherit}
+  .freeform input:focus{outline:none;border-color:var(--accent)}
+  .freeform button{background:var(--accent-deep);border:none;color:#fff;border-radius:12px;padding:0 18px;
+    font-size:14px;cursor:pointer;font-family:inherit;font-weight:500}
+
+  /* ---------- SCREEN 2: VISUAL VIBE BOARD ---------- */
+  .screen{display:none;animation:fade .4s ease both}
+  .screen.show{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .back{background:none;border:1px solid var(--line);color:var(--txt-2);border-radius:9px;
+    padding:7px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;margin-bottom:20px}
+  .vibe-intro{margin-bottom:6px}
+  .vibe-intro .planner{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--accent);
+    margin-bottom:10px;background:var(--accent-soft);border:1px solid #322c52;padding:5px 11px;border-radius:999px}
+  .vibe-intro h2{font-family:var(--serif);font-size:24px;font-weight:500;line-height:1.2}
+  .vibe-intro p{color:var(--txt-2);font-size:14px;margin-top:8px;max-width:560px}
+  .board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
+  @media(max-width:640px){.board{grid-template-columns:repeat(2,1fr)}}
+  .vibe{border-radius:16px;overflow:hidden;cursor:pointer;border:2px solid transparent;
+    transition:transform .2s ease, box-shadow .25s ease;position:relative;aspect-ratio:4/3;
+    opacity:0;animation:tileIn .5s ease forwards}
+  .vibe:hover{transform:translateY(-4px);box-shadow:0 14px 34px rgba(124,58,237,.28)}
+  .vibe.sel{border-color:var(--accent);box-shadow:0 0 0 3px rgba(196,160,255,.25),0 14px 34px rgba(124,58,237,.4)}
+  .vibe .art{position:absolute;inset:0;transition:transform .5s ease}
+  .vibe:hover .art{transform:scale(1.06)}
+  .vibe .art img{width:100%;height:100%;object-fit:cover;display:block}
+  @keyframes tileIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+  .vibe .cap{position:absolute;left:0;right:0;bottom:0;padding:12px 13px 11px;
+    background:linear-gradient(transparent,rgba(0,0,0,.78));z-index:2}
+  .vibe .cap .t{font-size:14px;font-weight:600}
+  .vibe .cap .d{font-size:11.5px;color:#d8d4e0;margin-top:2px}
+  .vibe .check{position:absolute;top:9px;right:9px;width:24px;height:24px;border-radius:50%;
+    background:var(--accent);color:#1a1426;display:none;align-items:center;justify-content:center;
+    font-size:14px;font-weight:700;z-index:3}
+  .vibe.sel .check{display:flex}
+  .unsure{margin-top:14px;text-align:center}
+  .unsure button{background:none;border:1px dashed var(--line);color:var(--txt-2);border-radius:10px;
+    padding:10px 18px;font-size:13px;cursor:pointer;font-family:inherit}
+  .unsure button:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* vibe selection bar (multi-select) */
+  .vibe-bar{display:flex;align-items:center;gap:14px;margin-top:18px;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+  .vibe-bar .vb-all{background:none;border:1px solid var(--line);color:var(--accent);border-radius:9px;
+    padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+  .vibe-bar .vb-all:hover{border-color:var(--accent)}
+  .vibe-bar .vb-count{flex:1;font-size:13px;color:var(--txt-2);min-width:140px}
+  .vibe-bar .vb-go{background:var(--accent-deep);color:#fff;border:none;border-radius:10px;
+    padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .vibe-bar .vb-go:disabled{opacity:.4;cursor:not-allowed}
+  body.mobile-preview .vibe-bar{flex-direction:column;align-items:stretch}
+  body.mobile-preview .vibe-bar .vb-count{text-align:center}
+
+  /* example directions (the "I don't know" path) */
+  .examples{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .examples h4{font-size:13px;color:var(--txt-2);font-weight:500;margin-bottom:11px}
+  .ex-row{display:flex;flex-direction:column;gap:8px}
+  .ex{text-align:left;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;
+    padding:11px 13px;cursor:pointer;transition:.15s;font-family:inherit}
+  .ex:hover{border-color:var(--accent)}
+  .ex .t{font-size:13.5px;font-weight:600;color:var(--txt)}
+  .ex .d{font-size:12px;color:var(--txt-2);margin-top:2px}
+
+  /* ---------- SCREEN 3: INSTANT DRAFT PLAN ---------- */
+  .draft-head{margin-bottom:4px}
+  .draft-head .planner{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--accent);
+    margin-bottom:10px;background:var(--accent-soft);border:1px solid #322c52;padding:5px 11px;border-radius:999px}
+  .draft-head h2{font-family:var(--serif);font-size:24px;font-weight:500;line-height:1.25}
+  .draft-head p{color:var(--txt-2);font-size:14px;margin-top:8px}
+  .draft-banner{margin-top:18px;background:linear-gradient(135deg,#241f3d,#191622);border:1px solid #322c52;
+    border-radius:12px;padding:12px 15px;font-size:13px;color:var(--txt-2)}
+  .draft-banner b{color:var(--accent)}
+
+  .cards{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.cards{grid-template-columns:1fr}}
+  .dcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;position:relative}
+  .dcard.hero-card{grid-column:1 / -1}
+  .dcard .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--txt-3);margin-bottom:7px}
+  .dcard .val{font-size:17px;font-weight:600;line-height:1.25}
+  .dcard .val .draft-tag{font-size:10px;font-weight:600;color:var(--warn);background:rgba(245,196,81,.13);
+    border-radius:5px;padding:2px 7px;margin-left:7px;vertical-align:middle;letter-spacing:.03em}
+  .dcard .val .confirmed-tag{font-size:10px;font-weight:600;color:var(--good);background:rgba(94,224,168,.13);
+    border-radius:5px;padding:2px 7px;margin-left:7px;vertical-align:middle;letter-spacing:.03em}
+  .dcard .sub{font-size:12.5px;color:var(--txt-2);margin-top:5px;line-height:1.45}
+  .dcard .adjust{margin-top:11px;background:none;border:1px solid var(--line);color:var(--accent);
+    border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .dcard .adjust:hover{border-color:var(--accent);background:var(--accent-soft)}
+
+  .dcard.venue .art{height:140px;border-radius:10px;margin:-2px 0 11px;overflow:hidden;
+    background:linear-gradient(135deg,#4c1d95,#9333ea 60%,#c4a0ff)}
+  .dcard.venue .art img{width:100%;height:100%;object-fit:cover;display:block}
+
+  .refined{display:inline-block;margin-top:9px;font-size:12px;color:var(--good);
+    background:rgba(94,224,168,.1);border:1px solid rgba(94,224,168,.28);border-radius:8px;padding:6px 11px}
+
+  .draft-cta{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .draft-cta .go{background:var(--accent-deep);color:#fff;border:none;border-radius:11px;padding:13px 22px;
+    font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .draft-cta .note{font-size:12.5px;color:var(--txt-3)}
+
+  /* refine drawer */
+  .drawer{margin-top:12px;background:var(--panel-2);border:1px solid var(--accent);border-radius:12px;
+    padding:15px;animation:fade .3s ease both}
+  .drawer .planner-line{font-size:13.5px;color:var(--txt);margin-bottom:12px;line-height:1.5}
+  .drawer .planner-line b{color:var(--accent)}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opt{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:11px 13px;cursor:pointer;font-family:inherit;transition:.15s}
+  .opt:hover{border-color:var(--accent)}
+  .opt.rec{background:linear-gradient(150deg,#231f38,#1a1622);border-color:#3a3358}
+  .opt .t{font-size:13.5px;font-weight:600;color:var(--txt)}
+  .opt .t em{font-style:normal;font-size:11px;color:var(--accent);margin-left:6px}
+  .opt .d{font-size:12px;color:var(--txt-2);margin-top:2px}
+  .opt-unsure{background:none;border:1px dashed var(--line);color:var(--txt-2);border-radius:10px;
+    padding:9px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;margin-top:2px}
+  .opt-unsure:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* ---------- SCREEN 4: GUIDED WORKSPACE ---------- */
+  .ws{display:grid;grid-template-columns:1fr 300px;gap:18px;align-items:start}
+  @media(max-width:720px){.ws{grid-template-columns:1fr}}
+  .ws-main{min-width:0}
+  .ws-tabs{display:flex;gap:8px;margin-bottom:14px}
+  .ws-tab{background:var(--accent-soft);border:1px solid #322c52;color:var(--accent);font-size:12.5px;
+    font-weight:600;padding:7px 14px;border-radius:999px;cursor:pointer;font-family:inherit}
+  .ws-tab.active{background:var(--accent-deep);border-color:transparent;color:#fff}
+  .ws-view{animation:fade .35s ease both}
+  .pv-head{font-family:var(--serif);font-size:21px;font-weight:500;margin-bottom:4px}
+  .pv-sub{font-size:13px;color:var(--txt-2);margin-bottom:16px}
+  .pv-mock{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+  /* website mock */
+  .site-hero{height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:#fff;text-align:center;position:relative}
+  .site-hero h3{font-family:var(--serif);font-size:28px;font-weight:500;text-shadow:0 2px 12px rgba(0,0,0,.4)}
+  .site-hero p{font-size:13px;margin-top:6px;opacity:.92;text-shadow:0 1px 8px rgba(0,0,0,.4)}
+  .site-nav{display:flex;gap:18px;padding:13px 18px;border-bottom:1px solid var(--line);font-size:12px;color:var(--txt-2)}
+  .site-body{padding:16px 18px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .site-block{background:var(--panel-2);border-radius:10px;padding:13px}
+  .site-block .bt{font-size:12px;font-weight:600;color:var(--txt)}
+  .site-block .bd{font-size:11.5px;color:var(--txt-3);margin-top:4px}
+  /* registration mock */
+  .reg-row{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;border-bottom:1px solid var(--line)}
+  .reg-row:last-child{border-bottom:none}
+  .reg-stat{font-size:22px;font-weight:700;color:var(--txt)}
+  .reg-lbl{font-size:12px;color:var(--txt-2)}
+  .reg-pill{font-size:11px;padding:4px 10px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+  /* budget mock */
+  .bud-bars{padding:16px 18px;display:flex;flex-direction:column;gap:11px}
+  .bud-line{display:flex;flex-direction:column;gap:5px}
+  .bud-top{display:flex;justify-content:space-between;font-size:12.5px}
+  .bud-top .bl{color:var(--txt-2)} .bud-top .bv{color:var(--txt);font-weight:600}
+  .bud-track{height:8px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+  .bud-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent-deep),var(--accent))}
+  /* generic placeholder piece */
+  .pv-empty{padding:30px 20px;text-align:center}
+  .pv-empty .ico{font-size:30px}
+  .pv-empty p{font-size:13px;color:var(--txt-2);margin-top:10px;max-width:340px;margin-left:auto;margin-right:auto}
+  .pv-back{margin-top:14px;background:none;border:1px solid var(--line);color:var(--accent);
+    border-radius:9px;padding:9px 15px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .ci .open-ic{margin-left:auto;font-size:13px;color:var(--txt-3);opacity:0;transition:.15s}
+  .ci:hover .open-ic{opacity:1}
+  .ws-chat{display:flex;flex-direction:column;gap:13px}
+  .wmsg{max-width:90%;font-size:14.5px;border-radius:14px;padding:13px 15px;animation:fade .35s ease both}
+  .wmsg.ai{background:var(--accent-soft);border:1px solid #322c52;align-self:flex-start;border-bottom-left-radius:4px}
+  .wmsg.me{background:var(--panel-2);align-self:flex-end;border-bottom-right-radius:4px}
+  .wmsg .why{display:block;margin-top:7px;font-size:12.5px;color:var(--accent);opacity:.9}
+  .wopts{align-self:flex-start;display:flex;flex-direction:column;gap:8px;width:90%}
+  .wopt{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:11px 13px;cursor:pointer;font-family:inherit;transition:.15s}
+  .wopt:hover{border-color:var(--accent)}
+  .wopt.rec{background:linear-gradient(150deg,#231f38,#1a1622);border-color:#3a3358}
+  .wopt .t{font-size:13.5px;font-weight:600;color:var(--txt)}
+  .wopt .t em{font-style:normal;font-size:11px;color:var(--accent);margin-left:6px}
+  .wopt .d{font-size:12px;color:var(--txt-2);margin-top:2px}
+  .wopt.unsure{border-style:dashed;background:none}
+  .wopt.unsure .t{color:var(--txt-2)}
+  .wvenues{align-self:stretch;display:grid;grid-template-columns:repeat(3,1fr);gap:9px;animation:fade .4s ease both}
+  @media(max-width:560px){.wvenues{grid-template-columns:1fr}}
+  .wv{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;overflow:hidden;cursor:pointer;transition:.15s}
+  .wv:hover{border-color:var(--accent)}
+  .wv.pick{border-color:var(--accent)}
+  .wv .wv-art{height:62px;background:linear-gradient(135deg,#4c1d95,#9333ea)}
+  .wv .wv-b{padding:8px 10px}
+  .wv .wv-n{font-size:12px;font-weight:600;line-height:1.25}
+  .wv .wv-t{font-size:10px;color:var(--accent);margin-top:4px;display:block}
+
+  /* checklist sidebar */
+  .ws-side{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;
+    position:sticky;top:20px}
+  .side-head{margin-bottom:14px}
+  .sh-title{font-family:var(--serif);font-size:18px;font-weight:500}
+  .sh-prog{height:6px;background:var(--panel-2);border-radius:99px;margin:10px 0 6px;overflow:hidden}
+  .sh-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent-deep),var(--accent));
+    border-radius:99px;transition:width .5s ease}
+  .sh-count{font-size:11.5px;color:var(--txt-3)}
+  .checklist{display:flex;flex-direction:column;gap:4px}
+  .ci{display:flex;gap:11px;align-items:flex-start;padding:10px 9px;border-radius:10px;cursor:pointer;transition:.15s}
+  .ci:hover{background:var(--panel-2)}
+  .ci.active{background:var(--accent-soft)}
+  .ci.locked{opacity:.45;cursor:default}
+  .ci.locked:hover{background:none}
+  .ci .box{width:20px;height:20px;border-radius:6px;border:2px solid var(--line);flex-shrink:0;margin-top:1px;
+    display:flex;align-items:center;justify-content:center;font-size:12px;transition:.2s}
+  .ci.done .box{background:var(--good);border-color:var(--good);color:#06281c}
+  .ci.active .box{border-color:var(--accent)}
+  .ci .ci-t{font-size:13px;font-weight:500;line-height:1.3}
+  .ci.done .ci-t{color:var(--txt-2);text-decoration:line-through;text-decoration-color:var(--txt-3)}
+  .ci .ci-s{font-size:11px;color:var(--txt-3);margin-top:2px}
+  .ci .ci-now{font-size:10px;color:var(--accent);font-weight:600;margin-top:3px;display:none}
+  .ci.active .ci-now{display:block}
+  .side-foot{margin-top:14px;font-size:11.5px;color:var(--txt-3);line-height:1.5;border-top:1px solid var(--line);padding-top:12px}
+
+  /* personalizer questions */
+  .pq{margin-top:22px}
+  .pq-q{font-size:15px;font-weight:600;color:var(--txt);margin-bottom:11px}
+  .pq-q .opt-note{font-weight:400;font-size:12.5px;color:var(--txt-3);margin-left:8px}
+  .pq-opts{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:8px}
+  .pq-opt{background:var(--panel);border:1px solid var(--line);color:var(--txt);font-size:13.5px;
+    padding:10px 16px;border-radius:999px;cursor:pointer;transition:.15s;font-family:inherit}
+  .pq-opt:hover{border-color:var(--accent)}
+  .pq-opt.sel{background:var(--accent-deep);border-color:transparent;color:#fff}
+  .pq-free{display:flex;gap:8px;margin-top:4px;max-width:440px}
+  .pq-free input{flex:1;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;
+    padding:11px 14px;color:var(--txt);font-size:14px;font-family:inherit}
+  .pq-free input:focus{outline:none;border-color:var(--accent)}
+  .pq-cta{margin-top:26px;display:flex;gap:12px;align-items:center}
+  .pq-cta .go{background:var(--accent-deep);color:#fff;border:none;border-radius:11px;padding:13px 24px;
+    font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .pq-cta .skip{background:none;border:none;color:var(--txt-3);font-size:13px;cursor:pointer;
+    text-decoration:underline;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="device-bar">
+  <button id="dvDesktop" class="on" onclick="setDevice('desktop')">🖥 Desktop</button>
+  <button id="dvMobile" onclick="setDevice('mobile')">📱 Mobile</button>
+</div>
+<div class="wrap">
+  <div class="stage-note">Concept prototype · dream-first opening · the best-of-both-worlds rework</div>
+
+  <!-- SCREEN 1 -->
+  <div id="s1">
+    <div class="hero">
+      <h1>Let's plan something <em>unforgettable</em>.</h1>
+      <p class="lede">I'm Joy, your event planner. Tell me what you're dreaming up and I'll handle the rest — finding your venue, building your site, and guiding every step. You don't need anything figured out yet.</p>
+      <div class="how">
+        <span><b>1.</b> A couple quick questions</span>
+        <span><b>2.</b> Pick a vibe</span>
+        <span><b>3.</b> See an instant draft</span>
+      </div>
+    </div>
+    <div class="ask">What are we planning?</div>
+    <div class="types" id="types">
+      <div class="type" data-ev="wedding"><span class="ic">💍</span><span class="nm">Wedding</span></div>
+      <div class="type" data-ev="conference"><span class="ic">🎤</span><span class="nm">Conference</span></div>
+      <div class="type" data-ev="dinner"><span class="ic">🍷</span><span class="nm">Work dinner</span></div>
+      <div class="type" data-ev="party"><span class="ic">🎉</span><span class="nm">Party</span></div>
+      <div class="type" data-ev="retreat"><span class="ic">🌲</span><span class="nm">Retreat</span></div>
+    </div>
+    <div class="freeform">
+      <input id="ff" placeholder="…or just tell me in your own words — 'a 40th birthday', 'a sales kickoff'">
+      <button onclick="freeform()">Start</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 1b: QUICK PERSONALIZER (1-2 warm questions before dreaming) -->
+  <div class="screen" id="s1b">
+    <button class="back" onclick="show('s1')">← Back</button>
+    <div class="vibe-intro">
+      <div class="planner">✦ Joy</div>
+      <h2 id="pqTitle">Tell me just a little first.</h2>
+      <p id="pqSub">A couple quick things and I'll tailor everything to you — you can change any of it later.</p>
+    </div>
+    <div id="pqHost"></div>
+  </div>
+
+  <!-- SCREEN 2: VIBE BOARD -->
+  <div class="screen" id="s2">
+    <button class="back" onclick="show('s1')">← Back</button>
+    <div class="vibe-intro">
+      <div class="planner">✦ Joy</div>
+      <h2 id="vibeTitle">First, let's dream a little.</h2>
+      <p id="vibeSub">Don't overthink it — just tap whatever makes you feel something. I'll turn it into a real starting plan in one click. You can change everything later.</p>
+    </div>
+    <div class="board" id="board"></div>
+    <div class="vibe-bar" id="vibeBar"></div>
+    <div class="unsure">
+      <button onclick="showExamples()">I don't know yet — show me some directions</button>
+    </div>
+    <div id="examplesHost"></div>
+  </div>
+
+  <!-- SCREEN 3: DRAFT PLAN -->
+  <div class="screen" id="s3">
+    <button class="back" onclick="show('s2')">← Back to vibes</button>
+    <div class="draft-head">
+      <div class="planner">✦ Joy</div>
+      <h2 id="draftTitle">Here's your starting plan.</h2>
+      <p id="draftSub">I've sketched this from your vibe. Everything marked <span style="color:var(--warn)">draft</span> is my best guess — tap to adjust any of it, or leave it and we'll refine as we go.</p>
+    </div>
+    <div class="draft-banner" id="draftBanner"></div>
+    <div class="cards" id="draftCards"></div>
+    <div class="draft-cta">
+      <button class="go" onclick="enterWorkspace()">This looks great — start planning</button>
+      <span class="note">or tap any card above to adjust it first</span>
+    </div>
+  </div>
+
+  <!-- SCREEN 4: GUIDED WORKSPACE (guide + checklist + plan views) -->
+  <div class="screen" id="s4">
+    <button class="back" onclick="show('s3')">← Back to draft</button>
+    <div class="ws">
+      <div class="ws-main">
+        <div class="ws-tabs">
+          <button class="ws-tab active" id="tabGuide" onclick="openGuideTab()">✦ Joy's guide</button>
+          <button class="ws-tab mobile-only-tab" id="tabPlan" onclick="openPlanTab()">📋 Your plan</button>
+          <button class="ws-tab" id="tabPiece" style="display:none" onclick="reopenPiece()"></button>
+        </div>
+        <div class="ws-chat" id="wsChat"></div>
+        <div class="ws-view" id="wsView" style="display:none"></div>
+        <div class="ws-plan-mobile" id="wsPlanMobile" style="display:none"></div>
+      </div>
+      <aside class="ws-side">
+        <div class="side-head">
+          <div class="sh-title">Your plan</div>
+          <div class="sh-prog"><div class="sh-bar" id="shBar"></div></div>
+          <div class="sh-count" id="shCount"></div>
+        </div>
+        <div class="checklist" id="checklist"></div>
+        <div class="side-foot">Tap an item to open it. Locked items unlock as you go — but you can always peek.</div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- DATA ---------- */
+const EVENTS = {
+  wedding:{ nm:"wedding",
+    vibeTitle:"First, let's dream about your day.",
+    vibes:[
+      {t:"Rustic & warm", d:"Barns, string lights, wildflowers", img:"https://images.unsplash.com/photo-1519741497674-611481863552?w=500&q=70", g:"linear-gradient(135deg,#7c5e3b,#b08456,#d9b382)"},
+      {t:"Elegant & formal", d:"Ballrooms, candlelight, florals", img:"https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500&q=70", g:"linear-gradient(135deg,#2b2440,#5b4a8a,#b9a7e0)"},
+      {t:"Garden & airy", d:"Greenery, daylight, open sky", img:"https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=500&q=70", g:"linear-gradient(135deg,#2f5d4a,#5fa07d,#bfe3cf)"},
+      {t:"Coastal & breezy", d:"Ocean views, soft neutrals", img:"https://images.unsplash.com/photo-1507504031003-b417219a0fde?w=500&q=70", g:"linear-gradient(135deg,#2a5a6e,#5fa0b8,#cfe7ef)"},
+      {t:"Modern & minimal", d:"Clean lines, city skyline", img:"https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500&q=70", g:"linear-gradient(135deg,#26262b,#55555f,#a8a8b4)"},
+      {t:"Vintage & romantic", d:"Old estates, antique charm", img:"https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=500&q=70", g:"linear-gradient(135deg,#6b2f3a,#a8566a,#e0b3c0)"}
+    ],
+    draft:(v)=>({
+      title:`Your ${v.t.toLowerCase()} wedding, in draft`,
+      banner:`Based on a <b>${v.t.toLowerCase()}</b> vibe, here's a realistic starting point. I made smart guesses where you haven't decided — nothing's locked.`,
+      venue:{art:v.g, type:venueForWedding(v.t), why:`${v.t} weddings tend to land here — it carries the look without fighting it.`},
+      cards:[
+        {lbl:"When", val:"Next fall", draft:true, sub:"Most weddings book 9–12 months out; fall fits a draft timeline.", refine:"date"},
+        {lbl:"Guests", val:"~120", draft:true, sub:"A common starting size. This drives venue and budget.", refine:"guests"},
+        {lbl:"Budget", val:"~$26K", draft:true, sub:"At roughly $200–250 a head for this style.", refine:"budget"},
+        {lbl:"Location", val:"Near you", draft:true, sub:"Easiest to plan; we can make it a destination instead.", refine:"location"}
+      ]
+    })
+  },
+  conference:{ nm:"conference",
+    vibeTitle:"First, what should this conference feel like?",
+    vibes:[
+      {t:"High-energy summit", d:"Big stage, bold lighting, buzz", img:"https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500&q=70", g:"linear-gradient(135deg,#3a1d6e,#7c3aed,#c4a0ff)"},
+      {t:"Professional & polished", d:"Hotel ballroom, clean AV", img:"https://images.unsplash.com/photo-1511578314322-379afb476865?w=500&q=70", g:"linear-gradient(135deg,#1f2a44,#3d5a8a,#a7c0e0)"},
+      {t:"Intimate & expert", d:"Smaller, focused, premium", img:"https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=500&q=70", g:"linear-gradient(135deg,#2b3b35,#4f7a68,#bcd9cc)"},
+      {t:"Expo & hands-on", d:"Booths, demos, big floor", img:"https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=500&q=70", g:"linear-gradient(135deg,#5e3a1d,#b87333,#e0c099)"},
+      {t:"Tech-forward", d:"Screens, modern, sleek", img:"https://images.unsplash.com/photo-1591115765373-5207764f72e7?w=500&q=70", g:"linear-gradient(135deg,#19222e,#2f6f8f,#9fd2e0)"},
+      {t:"Retreat-style", d:"Scenic, off-site, immersive", img:"https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=500&q=70", g:"linear-gradient(135deg,#2f4a2f,#5e8a4f,#c2e0a7)"}
+    ],
+    draft:(v)=>({
+      title:`Your ${v.t.toLowerCase()} conference, in draft`,
+      banner:`A <b>${v.t.toLowerCase()}</b> conference points to a specific kind of venue and budget. Here's a working draft to react to.`,
+      venue:{art:v.g, type:venueForConf(v.t), why:`This space type fits a ${v.t.toLowerCase()} feel and the setup it needs.`},
+      cards:[
+        {lbl:"Attendees", val:"~200", draft:true, sub:"A solid mid-size starting point. Scale changes everything.", refine:"guests"},
+        {lbl:"Budget", val:"~$35K", draft:true, sub:"Around $150–200 a head all-in at this size.", refine:"budget"},
+        {lbl:"Location", val:"A travel hub", draft:true, sub:"Easy airport access maximizes turnout.", refine:"location"},
+        {lbl:"Format", val:"1 day, breakouts", draft:true, sub:"Main stage plus a few breakout rooms.", refine:"format"}
+      ]
+    })
+  },
+  dinner:{ nm:"work dinner",
+    vibeTitle:"First, what's the feeling for the evening?",
+    vibes:[
+      {t:"Polished & impressive", d:"Upscale, private room, AV", img:"https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500&q=70", g:"linear-gradient(135deg,#2b2440,#5b4a8a,#b9a7e0)"},
+      {t:"Relaxed & connective", d:"Cozy, conversational, warm", img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=500&q=70", g:"linear-gradient(135deg,#6b4226,#a8703f,#e0c4a0)"},
+      {t:"Celebratory", d:"A win to toast, lively", img:"https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=500&q=70", g:"linear-gradient(135deg,#5e1d3a,#a8366a,#e0a7c0)"},
+      {t:"Quiet & exclusive", d:"Small, discreet, premium", img:"https://images.unsplash.com/photo-1551632436-cbf8dd35adfa?w=500&q=70", g:"linear-gradient(135deg,#23262b,#4a4f5a,#a8aeb8)"},
+      {t:"Chef's table", d:"Tasting menu, an experience", img:"https://images.unsplash.com/photo-1559339352-11d035aa65de?w=500&q=70", g:"linear-gradient(135deg,#3a2618,#7a4a28,#d8a868)"},
+      {t:"Rooftop & view", d:"Skyline, open air, golden hour", img:"https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?w=500&q=70", g:"linear-gradient(135deg,#2a3550,#5a6a98,#bcc8e8)"}
+    ],
+    draft:(v)=>({
+      title:`Your ${v.t.toLowerCase()} dinner, in draft`,
+      banner:`A <b>${v.t.toLowerCase()}</b> dinner usually means a private dining room. Here's a starting point you can adjust.`,
+      venue:{art:v.g, type:"Private dining room at an upscale restaurant", why:`Feels more high-touch than a hotel room for a ${v.t.toLowerCase()} evening.`},
+      cards:[
+        {lbl:"Guests", val:"~18", draft:true, sub:"A comfortable table for execs or clients.", refine:"guests"},
+        {lbl:"Budget", val:"~$2.5K", draft:true, sub:"Around $140 a head with food, wine, and AV.", refine:"budget"},
+        {lbl:"Location", val:"Where guests are", draft:true, sub:"Best turnout; could fly people in instead.", refine:"location"},
+        {lbl:"When", val:"In ~3 weeks", draft:true, sub:"Short lead time works for a dinner this size.", refine:"date"}
+      ]
+    })
+  },
+  party:{ nm:"party",
+    vibeTitle:"First, what's the energy?",
+    vibes:[
+      {t:"Lively & high-energy", d:"Dancing, sound, big crowd", img:"https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=500&q=70", g:"linear-gradient(135deg,#5e1d6e,#a83aed,#d0a0ff)"},
+      {t:"Intimate & cozy", d:"Close friends, warm light", img:"https://images.unsplash.com/photo-1525258946800-98cfd641d0de?w=500&q=70", g:"linear-gradient(135deg,#6b4226,#a8703f,#e0c4a0)"},
+      {t:"Chic & elevated", d:"Cocktails, style, polish", img:"https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?w=500&q=70", g:"linear-gradient(135deg,#23243a,#4a4d7a,#a7aae0)"},
+      {t:"Playful & themed", d:"Color, costume, fun", img:"https://images.unsplash.com/photo-1464349153735-7db50ed83c84?w=500&q=70", g:"linear-gradient(135deg,#1d5e5a,#36a89a,#a7e0d8)"},
+      {t:"Garden & outdoor", d:"Backyard, daylight, easy", img:"https://images.unsplash.com/photo-1530023367847-a683933f4172?w=500&q=70", g:"linear-gradient(135deg,#2f5d3a,#5fa05f,#bfe3a7)"},
+      {t:"Late-night glow", d:"Neon, lounge, after-dark", img:"https://images.unsplash.com/photo-1545128485-c400e7702796?w=500&q=70", g:"linear-gradient(135deg,#2a1d4e,#6a3aae,#c0a0ff)"}
+    ],
+    draft:(v)=>({
+      title:`Your ${v.t.toLowerCase()} party, in draft`,
+      banner:`A <b>${v.t.toLowerCase()}</b> party shapes the kind of space we want. Here's a draft to react to.`,
+      venue:{art:v.g, type:v.t.includes("Intimate")?"A characterful private space":"An open event space with sound", why:`Carries a ${v.t.toLowerCase()} feel with room to match.`},
+      cards:[
+        {lbl:"Guests", val:"~50", draft:true, sub:"A lively starting size; sets the room.", refine:"guests"},
+        {lbl:"Budget", val:"~$5K", draft:true, sub:"Around $80–120 a head with food and drinks.", refine:"budget"},
+        {lbl:"Location", val:"Local", draft:true, sub:"Best turnout; could be a destination weekend.", refine:"location"},
+        {lbl:"When", val:"In ~6 weeks", draft:true, sub:"Enough runway to invite and plan.", refine:"date"}
+      ]
+    })
+  },
+  retreat:{ nm:"retreat",
+    vibeTitle:"First, what should this retreat feel like?",
+    vibes:[
+      {t:"Nature & reset", d:"Mountains, cabins, fresh air", img:"https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=500&q=70", g:"linear-gradient(135deg,#2f4a2f,#5e8a4f,#c2e0a7)"},
+      {t:"Luxury & restorative", d:"Spa, comfort, premium", img:"https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=500&q=70", g:"linear-gradient(135deg,#3a2b40,#6f5a8a,#cdb9e0)"},
+      {t:"Focused & productive", d:"Workspaces, breakouts", img:"https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&q=70", g:"linear-gradient(135deg,#1f2a44,#3d5a8a,#a7c0e0)"},
+      {t:"Adventure & bonding", d:"Activities, the outdoors", img:"https://images.unsplash.com/photo-1533240332313-0db49b459ad6?w=500&q=70", g:"linear-gradient(135deg,#5e3a1d,#b87333,#e0c099)"},
+      {t:"Coastal & calm", d:"Beach house, ocean air", img:"https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?w=500&q=70", g:"linear-gradient(135deg,#2a5a6e,#5fa0b8,#cfe7ef)"},
+      {t:"Desert & striking", d:"Big skies, design, quiet", img:"https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?w=500&q=70", g:"linear-gradient(135deg,#6e3a2a,#b8703a,#e8c098)"}
+    ],
+    draft:(v)=>({
+      title:`Your ${v.t.toLowerCase()} retreat, in draft`,
+      banner:`A <b>${v.t.toLowerCase()}</b> retreat usually means flying everyone somewhere intentional. Here's a working draft.`,
+      venue:{art:v.g, type:"A full-buyout lodge or resort", why:`Keeps the group together and matches a ${v.t.toLowerCase()} goal.`},
+      cards:[
+        {lbl:"Group size", val:"~30", draft:true, sub:"A typical team-retreat size.", refine:"guests"},
+        {lbl:"Budget", val:"~$45K", draft:true, sub:"Lodging, meals, and activities for a few days.", refine:"budget"},
+        {lbl:"Location", val:"A destination", draft:true, sub:"The point is getting out of routine.", refine:"location"},
+        {lbl:"Length", val:"2–3 days", draft:true, sub:"Long enough to reset, short enough to commit.", refine:"date"}
+      ]
+    })
+  }
+};
+
+function venueForWedding(t){
+  if(t.includes("Rustic")) return "A barn or vineyard estate";
+  if(t.includes("Elegant")) return "A grand ballroom or estate";
+  if(t.includes("Garden")) return "A botanical garden or conservatory";
+  if(t.includes("Coastal")) return "A beachfront or clifftop venue";
+  if(t.includes("Modern")) return "A modern loft or rooftop";
+  return "A historic estate or manor";
+}
+function venueForConf(t){
+  if(t.includes("Expo")) return "A convention center with expo floor";
+  if(t.includes("Retreat")) return "A resort conference center";
+  if(t.includes("Intimate")) return "A boutique hotel meeting space";
+  return "A hotel conference center";
+}
+
+/* example directions for the "I don't know" path */
+const EXAMPLES = {
+  wedding:[
+    {t:"Most couples start rustic", d:"It's forgiving, photogenic, and budget-flexible", vibe:0},
+    {t:"Go elegant if you want 'wow'", d:"Formal venues do the heavy lifting on ambiance", vibe:1},
+    {t:"Garden if you love daylight", d:"Bright, natural, relaxed for guests", vibe:2}
+  ],
+  conference:[
+    {t:"Polished is the safe default", d:"A hotel ballroom rarely disappoints", vibe:1},
+    {t:"Expo if sponsors matter", d:"Floor space for booths and demos", vibe:3},
+    {t:"Retreat-style for bonding", d:"Off-site, immersive, memorable", vibe:5}
+  ],
+  dinner:[
+    {t:"Polished for clients", d:"Impresses without trying too hard", vibe:0},
+    {t:"Relaxed for the team", d:"Better conversation, less stiff", vibe:1}
+  ],
+  party:[
+    {t:"Lively for a big milestone", d:"Room to dance, real energy", vibe:0},
+    {t:"Intimate for close friends", d:"Warm, personal, easy", vibe:1}
+  ],
+  retreat:[
+    {t:"Nature for a reset", d:"Gets everyone out of their heads", vibe:0},
+    {t:"Focused if there's real work", d:"Breakouts and workspaces", vibe:2}
+  ]
+};
+
+/* ---------- ENGINE ---------- */
+let curEvent=null, curVibes=[];
+
+function setDevice(d){
+  document.body.classList.toggle('mobile-preview', d==='mobile');
+  document.getElementById('dvMobile').classList.toggle('on', d==='mobile');
+  document.getElementById('dvDesktop').classList.toggle('on', d==='desktop');
+  window.scrollTo({top:0});
+}
+
+function show(id){
+  document.getElementById('s1').style.display = id==='s1'?'block':'none';
+  ['s1b','s2','s3','s4'].forEach(s=>document.getElementById(s).classList.toggle('show', s===id));
+}
+
+/* ---------- PERSONALIZER: 3 warm questions per event, before dreaming ---------- */
+// Questions: location, who+count, theme. Each has tappable idea chips + free text.
+const PERSONALIZE = {
+  wedding:[
+    {key:"location", q:"Where are you thinking?", note:"a city or 'not sure' is fine", opts:["Near where we live","A hometown","A destination","Not sure yet"], free:"e.g. 'Sonoma' or 'somewhere on the coast'"},
+    {key:"who", q:"Who's coming, and about how many?", note:"a ballpark is perfect", opts:["Just close family (under 50)","Family & friends (~120)","Everyone we know (200+)"], free:"e.g. 'about 100, mostly family'"},
+    {key:"theme", q:"Any theme or look pulling at you?", note:"optional — for inspiration", opts:["Wildflower & greenery","Black-tie classic","Garden romance","Vintage","No theme yet"], free:"e.g. 'dusty blue & gold'"}
+  ],
+  conference:[
+    {key:"location", q:"Where should it happen?", note:"or leave it open", opts:["A major travel hub","Near our HQ","A destination city","Not sure yet"], free:"e.g. 'Austin' or 'somewhere central'"},
+    {key:"who", q:"Who's attending, and how many?", note:"rough is fine", opts:["Customers (~100)","Industry (~200)","Internal teams (~100)","Big (400+)"], free:"e.g. 'around 250 customers'"},
+    {key:"theme", q:"A theme or focus for the event?", note:"optional", opts:["Product & innovation","Networking-first","Education & training","Celebration","No theme yet"], free:"e.g. 'AI & the future of work'"}
+  ],
+  dinner:[
+    {key:"location", q:"Where are you hosting?", note:"or decide later", opts:["Where our guests are","Somewhere central","Fly people in","Not sure yet"], free:"e.g. 'downtown Chicago'"},
+    {key:"who", q:"Who's at the table, and how many?", opts:["Clients (~10)","Our team (~18)","Execs / VIPs","A mix (30+)"], free:"e.g. 'our top 10 clients'"},
+    {key:"theme", q:"Any tone or theme?", note:"optional", opts:["Celebrate a win","Build relationships","Impress & close","Year-end thank-you","No theme yet"], free:"e.g. 'celebrating the Q4 close'"}
+  ],
+  party:[
+    {key:"location", q:"Where's the party?", note:"home, a venue, or unsure", opts:["At home","A venue","Outdoors / a park","A destination","Not sure yet"], free:"e.g. 'our backyard' or 'Vegas'"},
+    {key:"who", q:"Who's it for, and how many guests?", note:"this shapes everything", opts:["A kid's birthday (under 20)","An adult milestone (~50)","Just for fun","A couple / engagement (80+)"], free:"e.g. 'my son's 4th, ~25 kids'"},
+    {key:"theme", q:"A theme they'd love?", note:"optional but fun", opts:["Dinosaurs","Princess / fairytale","Superheroes","Outer space","Tropical / luau","No theme yet"], free:"e.g. 'unicorns' or 'retro 80s'"}
+  ],
+  retreat:[
+    {key:"location", q:"Where do you want to go?", note:"or keep it open", opts:["Mountains / nature","A beach / coast","A resort","Somewhere walkable","Not sure yet"], free:"e.g. 'Tahoe' or 'somewhere warm'"},
+    {key:"who", q:"Who's coming, and how many?", opts:["The whole team (~30)","Leadership (under 15)","A department","Big group (50+)"], free:"e.g. 'our 25-person eng team'"},
+    {key:"theme", q:"What's the focus?", note:"optional", opts:["Reset & recharge","Strategy & planning","Team bonding","Skill-building","No theme yet"], free:"e.g. 'reconnect after a hard quarter'"}
+  ]
+};
+
+let answers = {}; // {who:..., count:...}
+
+function startEvent(ev){
+  curEvent=ev;
+  answers={};
+  renderPersonalizer();
+  show('s1b');
+}
+
+function renderPersonalizer(){
+  const qs=PERSONALIZE[curEvent]||[];
+  const host=document.getElementById('pqHost');
+  host.innerHTML = qs.map((q,qi)=>`
+    <div class="pq" data-key="${q.key}">
+      <div class="pq-q">${q.q}${q.note?`<span class="opt-note">${q.note}</span>`:''}</div>
+      <div class="pq-opts">
+        ${q.opts.map((o,oi)=>`<button class="pq-opt" data-q="${qi}" data-v="${o.replace(/"/g,'&quot;')}">${o}</button>`).join('')}
+      </div>
+      <div class="pq-free">
+        <input data-q="${qi}" data-key="${q.key}" placeholder="${q.free}">
+      </div>
+    </div>`).join('') + `
+    <div class="pq-cta">
+      <button class="go" onclick="finishPersonalizer()">Continue to vibes →</button>
+      <button class="skip" onclick="finishPersonalizer(true)">Skip — I'll decide as I go</button>
+    </div>`;
+  // wire option chips
+  host.querySelectorAll('.pq-opt').forEach(b=>{
+    b.onclick=()=>{
+      const q=+b.dataset.q;
+      host.querySelectorAll(`.pq-opt[data-q="${q}"]`).forEach(x=>x.classList.remove('sel'));
+      b.classList.add('sel');
+      answers[qs[q].key]=b.dataset.v;
+      // clear the matching free input so chip wins
+      const inp=host.querySelector(`.pq-free input[data-q="${q}"]`); if(inp) inp.value='';
+    };
+  });
+  // wire free text
+  host.querySelectorAll('.pq-free input').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      if(inp.value.trim()){
+        answers[inp.dataset.key]=inp.value.trim();
+        // deselect chips for this question
+        host.querySelectorAll(`.pq-opt[data-q="${inp.dataset.q}"]`).forEach(x=>x.classList.remove('sel'));
+      }
+    });
+  });
+}
+
+function finishPersonalizer(skip){
+  if(skip) answers={};
+  openVibeBoard();
+}
+
+function openVibeBoard(){
+  const E=EVENTS[curEvent];
+  curVibes=[];
+  const whoLine = answers.who ? personalWhoPhrase() : '';
+  document.getElementById('vibeTitle').textContent = whoLine
+    ? `Let's dream up ${whoLine}.`
+    : E.vibeTitle;
+  document.getElementById('vibeSub').textContent = whoLine
+    ? "Tap every vibe that speaks to you — pick one or blend a few, I'll weave them together. Tailored to what you just told me."
+    : "Tap every vibe that speaks to you — pick one or blend a few. I'll weave them into one starting plan. You can change everything later.";
+  document.getElementById('examplesHost').innerHTML='';
+  const board=document.getElementById('board');
+  board.innerHTML = E.vibes.map((v,i)=>`
+    <div class="vibe" data-i="${i}" style="animation-delay:${i*70}ms">
+      <div class="art" style="background:${v.g}">
+        ${v.img?`<img src="${v.img}" alt="${v.t}" loading="lazy" onerror="this.style.display='none'">`:''}
+      </div>
+      <div class="check">✓</div>
+      <div class="cap"><div class="t">${v.t}</div><div class="d">${v.d}</div></div>
+    </div>`).join('');
+  board.querySelectorAll('.vibe').forEach(el=>{
+    el.onclick=()=>toggleVibe(+el.dataset.i);
+  });
+  renderVibeBar();
+  show('s2');
+}
+
+function toggleVibe(i){
+  const at=curVibes.indexOf(i);
+  if(at>=0) curVibes.splice(at,1); else curVibes.push(i);
+  document.querySelectorAll('#board .vibe').forEach(el=>
+    el.classList.toggle('sel', curVibes.includes(+el.dataset.i)));
+  renderVibeBar();
+}
+
+function selectAllVibes(){
+  const n=EVENTS[curEvent].vibes.length;
+  const all = curVibes.length===n;
+  curVibes = all ? [] : [...Array(n).keys()];
+  document.querySelectorAll('#board .vibe').forEach(el=>
+    el.classList.toggle('sel', curVibes.includes(+el.dataset.i)));
+  renderVibeBar();
+}
+
+function renderVibeBar(){
+  const host=document.getElementById('vibeBar');
+  const n=EVENTS[curEvent].vibes.length;
+  const count=curVibes.length;
+  const allSel = count===n && n>0;
+  host.innerHTML = `
+    <button class="vb-all" onclick="selectAllVibes()">${allSel?'Clear all':'Select all'}</button>
+    <div class="vb-count">${count===0?'Pick at least one to continue':count===1?'1 vibe selected':count+' vibes selected — I will blend them'}</div>
+    <button class="vb-go" ${count===0?'disabled':''} onclick="buildDraft()">See my draft →</button>
+  `;
+}
+
+// turn the "who" answer into a natural phrase for headers/banners.
+// Covers every option of every event type, plus free-text fallbacks.
+function personalWhoPhrase(){
+  const w=(answers.who||'').toLowerCase();
+  if(!w) return defaultPhrase();
+
+  if(curEvent==='party'){
+    // free-text specifics first
+    if(w.includes('son')) return "your son's birthday";
+    if(w.includes('daughter')) return "your daughter's birthday";
+    const age=w.match(/(\d{1,3})(?:st|nd|rd|th)?\s*(?:birthday)?/);
+    // chip options
+    if(w.includes('kid')||(w.includes('birthday')&&!w.includes('milestone'))) return "the birthday party";
+    if(w.includes('milestone')) return "the milestone celebration";
+    if(w.includes('just for fun')||w.includes('fun')) return "the get-together";
+    if(w.includes('couple')||w.includes('engage')) return "the engagement party";
+    return shortFree("your party");
+  }
+
+  if(curEvent==='wedding'){
+    if(w.includes('mine')||w.includes('partner')||w.includes('my')&&w.includes('our')) return "your wedding";
+    if(w.includes('daughter')) return "your daughter's wedding";
+    if(w.includes('son')) return "your son's wedding";
+    if(w.includes('helping')||w.includes('friend')) return "the wedding you're helping plan";
+    return shortFree("the wedding");
+  }
+
+  if(curEvent==='conference'){
+    if(w.includes('customer')) return "your customer conference";
+    if(w.includes('industry')) return "your industry conference";
+    if(w.includes('internal')||w.includes('team')) return "your internal conference";
+    return shortFree("your conference");
+  }
+
+  if(curEvent==='dinner'){
+    if(w.includes('client')) return "your client dinner";
+    if(w.includes('team')) return "your team dinner";
+    if(w.includes('exec')||w.includes('vip')) return "your VIP dinner";
+    if(w.includes('mix')) return "your dinner";
+    return shortFree("the dinner");
+  }
+
+  if(curEvent==='retreat'){
+    if(w.includes('whole team')||w.includes('team')) return "your team retreat";
+    if(w.includes('leadership')||w.includes('exec')) return "your leadership retreat";
+    if(w.includes('department')||w.includes('dept')) return "your department's retreat";
+    return shortFree("the retreat");
+  }
+  return defaultPhrase();
+}
+// use short free-text verbatim, otherwise a sensible default
+function shortFree(fallback){
+  return (answers.who && answers.who.length<32) ? answers.who.toLowerCase() : fallback;
+}
+function defaultPhrase(){
+  return {wedding:"the wedding",conference:"your conference",dinner:"the dinner",party:"your party",retreat:"the retreat"}[curEvent]||"your event";
+}
+
+// map a chosen count answer to a rough number for the draft
+function countFromAnswer(){
+  const c=((answers.count||'')+' '+(answers.who||'')).toLowerCase();
+  if(c.includes('handful')||c.includes('under 10')) return 8;
+  if(c.includes('under 15')) return 12;
+  if(c.includes('under 20')) return 16;
+  if(c.includes('under 50')) return 40;
+  const m=c.match(/(\d{2,4})/);
+  if(m) return parseInt(m[1],10);
+  if(c.includes('intimate')) return 40;
+  if(c.includes('small')) return 16;
+  if(c.includes('400')) return 400;
+  if(c.includes('200')) return 200;
+  if(c.includes('80')||c.includes('big')) return 80;
+  if(c.includes('50')) return 50;
+  if(c.includes('100')) return 100;
+  if(c.includes('120')||c.includes('mid')) return 120;
+  if(c.includes('30')) return 30;
+  if(c.includes('18')) return 18;
+  return null;
+}
+// natural phrase for the location answer
+function locationPhrase(){
+  const l=(answers.location||'').toLowerCase();
+  if(!l||l.includes('not sure')) return '';
+  if(l.includes('near where we live')||l.includes('near our hq')) return 'close to home';
+  if(l.includes('hometown')) return 'in your hometown';
+  if(l.includes('destination')) return 'as a destination';
+  if(l.includes('travel hub')||l.includes('central')) return 'in a central hub';
+  if(l.includes('at home')) return 'at home';
+  if(l.includes('outdoors')||l.includes('park')) return 'outdoors';
+  if(l.includes('fly')) return 'with everyone flying in';
+  if(l.includes('mountain')||l.includes('nature')) return 'somewhere in nature';
+  if(l.includes('beach')||l.includes('coast')) return 'on the coast';
+  if(l.includes('resort')) return 'at a resort';
+  if(l.includes('venue')) return 'at a venue';
+  return l.length<28 ? 'in '+answers.location : '';
+}
+// natural phrase for the theme answer
+function themePhrase(){
+  const t=(answers.theme||'');
+  if(!t||/no theme/i.test(t)) return '';
+  return t.toLowerCase();
+}
+// format a number as $X,XXX or $XXK
+function fmtMoney(n){
+  if(n>=10000) return '$'+Math.round(n/1000)+'K';
+  if(n>=1000) return '$'+(n/1000).toFixed(1).replace(/\.0$/,'')+'K';
+  return '$'+n.toLocaleString();
+}
+
+// used by the "I don't know" examples path: set a single vibe and go
+function pickVibe(i){
+  curVibes=[i];
+  buildDraft();
+}
+
+function vibeBlendPhrase(){
+  const E=EVENTS[curEvent];
+  const names=curVibes.map(i=>E.vibes[i].t.toLowerCase());
+  if(names.length===0) return '';
+  if(names.length===1) return names[0];
+  if(names.length===E.vibes.length) return 'a little of everything';
+  if(names.length===2) return `${names[0]} meets ${names[1]}`;
+  return names.slice(0,-1).join(', ')+', and '+names[names.length-1];
+}
+
+function buildDraft(){
+  const E=EVENTS[curEvent];
+  if(curVibes.length===0) curVibes=[0];
+  const v=E.vibes[curVibes[0]]; // primary vibe drives venue & layout
+  const d=E.draft(v);
+  const blend=vibeBlendPhrase();
+
+  // weave in who it's for
+  const whoPhrase = answers.who ? personalWhoPhrase() : '';
+  document.getElementById('draftTitle').textContent = whoPhrase
+    ? `Here's a starting plan for ${whoPhrase}.`
+    : d.title;
+  let banner = d.banner;
+  if(whoPhrase || answers.count || answers.location || answers.theme || curVibes.length>1){
+    const bits=[];
+    if(whoPhrase) bits.push(`it's ${whoPhrase}`);
+    if(countFromAnswer()) bits.push(`around ${countFromAnswer()} guests`);
+    if(locationPhrase()) bits.push(locationPhrase());
+    const themed = themePhrase() ? ` with a <b>${themePhrase()}</b> theme` : '';
+    const vibeLabel = curVibes.length>1 ? `a blend of <b>${blend}</b>` : `a <b>${blend}</b> vibe`;
+    const lead = bits.length ? `I took what you told me — ${bits.join(', ')} — and ${vibeLabel}` : `I took ${vibeLabel}`;
+    banner = `${lead}${themed}, and sketched a realistic starting point. Nothing's locked.`;
+  }
+  document.getElementById('draftBanner').innerHTML = banner;
+
+  const host=document.getElementById('draftCards');
+  const vibeImg = v.img ? `<img src="${v.img}" alt="" loading="lazy" onerror="this.style.display='none'">` : '';
+  let html = `
+    <div class="dcard hero-card venue">
+      <div class="art" style="background:${d.venue.art}">${vibeImg}</div>
+      <div class="lbl">Proposed venue type</div>
+      <div class="val">${d.venue.type} <span class="draft-tag">DRAFT</span></div>
+      <div class="sub">${d.venue.why}</div>
+      <button class="adjust" data-refine="venue">Adjust venue direction</button>
+    </div>`;
+
+  const knownCount = countFromAnswer();
+  // rough per-head cost by event type, so the budget reflects the user's real headcount
+  const perHead = {wedding:215, conference:175, dinner:140, party:100, retreat:1500}[curEvent];
+  d.cards.forEach(c=>{
+    let val=c.val, sub=c.sub, isDraft=c.draft, tagHtml='';
+    // if the user gave us a headcount, use it and mark it confirmed (not a guess)
+    if((c.lbl==='Guests'||c.lbl==='Attendees'||c.lbl==='Group size') && knownCount){
+      val='~'+knownCount; isDraft=false;
+      sub='From what you told me — this drives your venue and budget.';
+      tagHtml='<span class="confirmed-tag">✓ YOURS</span>';
+    } else if(c.lbl==='Location' && locationPhrase()){
+      val = answers.location.replace(/\b\w/g,m=>m).slice(0,24); isDraft=false;
+      sub='From what you told me — I\'ll search venues here.';
+      tagHtml='<span class="confirmed-tag">✓ YOURS</span>';
+    } else if(c.lbl==='Budget' && knownCount && perHead){
+      // recompute budget from the real headcount
+      const total=knownCount*perHead;
+      val='~'+fmtMoney(total);
+      sub=`Based on your ~${knownCount} guests at roughly ${fmtMoney(perHead)} a head for this style.`;
+      tagHtml='<span class="draft-tag">DRAFT</span>';
+    } else {
+      tagHtml = isDraft?'<span class="draft-tag">DRAFT</span>':'';
+    }
+    html += `
+      <div class="dcard">
+        <div class="lbl">${c.lbl}</div>
+        <div class="val">${val} ${tagHtml}</div>
+        <div class="sub">${sub}</div>
+        <button class="adjust" data-refine="${c.refine}">Adjust</button>
+      </div>`;
+  });
+  host.innerHTML=html;
+  host.querySelectorAll('.adjust').forEach(b=>{
+    b.onclick=()=>openRefine(b.dataset.refine, b.closest('.dcard'));
+  });
+  show('s3');
+}
+
+/* refine drawers: AI proposes options + a "not sure" that keeps the default */
+const REFINE = {
+  guests:{ line:"Headcount drives your venue size and budget, so it's worth a rough guess. Here's how it shifts things:",
+    opts:[
+      {t:"Smaller / intimate", d:"Lower budget, more venue choices", rec:false},
+      {t:"Keep my draft", d:"A safe middle — adjust later anytime", rec:true},
+      {t:"Larger / grand", d:"Bigger venue, higher budget"}
+    ]},
+  budget:{ line:"Budget and guest count move together. Want me to anchor on a number, or keep it flexible?",
+    opts:[
+      {t:"Set a firm ceiling", d:"I'll keep every option under it", rec:false},
+      {t:"Keep my draft estimate", d:"A realistic ballpark for this style", rec:true},
+      {t:"I have room to spend", d:"I'll show premium options too"}
+    ]},
+  location:{ line:"Where you host decides who can easily come. The trade-off:",
+    opts:[
+      {t:"Keep it local", d:"Best turnout, easiest to plan", rec:true},
+      {t:"Make it a destination", d:"More special, asks more of guests"},
+      {t:"Compare a couple cities", d:"I'll show options side by side"}
+    ]},
+  date:{ line:"Timing affects price and availability. What's closest to right?",
+    opts:[
+      {t:"Keep my draft timing", d:"A sensible default to start", rec:true},
+      {t:"Sooner", d:"I'll flag what's realistic on a tight timeline"},
+      {t:"Flexible / off-peak", d:"Often cheaper and easier to book"}
+    ]},
+  format:{ line:"Format shapes the venue. Which is closer?",
+    opts:[
+      {t:"Single main room", d:"Simpler, wider venue choice"},
+      {t:"Keep breakouts", d:"Main stage plus sectionable rooms", rec:true},
+      {t:"Expo floor too", d:"Adds space for booths and demos"}
+    ]},
+  venue:{ line:"This is just my opening guess from your vibe. Want to nudge it?",
+    opts:[
+      {t:"Love it, keep this direction", d:"We'll search real venues of this type", rec:true},
+      {t:"Show me a different style", d:"I'll propose another venue type"},
+      {t:"I already have a venue", d:"Skip the search, we'll build around it"}
+    ]}
+};
+
+function openRefine(key, card){
+  // remove any existing drawer
+  document.querySelectorAll('.drawer').forEach(d=>d.remove());
+  const r=REFINE[key]; if(!r) return;
+  const drawer=document.createElement('div');
+  drawer.className='drawer';
+  drawer.innerHTML = `
+    <div class="planner-line">✦ ${r.line}</div>
+    <div class="opts">
+      ${r.opts.map((o,i)=>`<button class="opt ${o.rec?'rec':''}" data-i="${i}">
+        <div class="t">${o.t}${o.rec?'<em>· my suggestion</em>':''}</div>
+        <div class="d">${o.d}</div></button>`).join('')}
+      <button class="opt-unsure">I don't know yet — keep your draft and move on</button>
+    </div>`;
+  card.appendChild(drawer);
+  drawer.querySelectorAll('.opt').forEach(b=>{
+    b.onclick=()=>{
+      const o=r.opts[+b.dataset.i];
+      drawer.remove();
+      markRefined(card, o.t);
+    };
+  });
+  drawer.querySelector('.opt-unsure').onclick=()=>{
+    drawer.remove();
+    markRefined(card, "Keeping the draft for now");
+  };
+  drawer.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function markRefined(card, label){
+  // swap DRAFT tag for a confirmed note
+  const tag=card.querySelector('.draft-tag');
+  if(tag) tag.remove();
+  let note=card.querySelector('.refined');
+  if(!note){ note=document.createElement('span'); note.className='refined'; card.appendChild(note); }
+  note.textContent = '✓ ' + label;
+}
+
+function showExamples(){
+  const host=document.getElementById('examplesHost');
+  const ex=EXAMPLES[curEvent]||[];
+  host.innerHTML = `
+    <div class="examples">
+      <h4>No problem — here's where people usually land. Tap one and I'll run with it:</h4>
+      <div class="ex-row">
+        ${ex.map((e,i)=>`<button class="ex" data-v="${e.vibe}">
+          <div class="t">${e.t}</div><div class="d">${e.d}</div></button>`).join('')}
+      </div>
+    </div>`;
+  host.querySelectorAll('.ex').forEach(b=>{
+    b.onclick=()=>pickVibe(+b.dataset.v);
+  });
+  host.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+/* ---------- SCREEN 4: GUIDED WORKSPACE ---------- */
+const CHECKLISTS = {
+  wedding:[
+    {t:"Lock your venue", s:"Confirm the place & date"},
+    {t:"Build your wedding website", s:"Date & location auto-filled"},
+    {t:"Start your guest list", s:"Drives catering & budget"},
+    {t:"Open RSVPs", s:"Let guests save the date"},
+    {t:"Plan the details", s:"Schedule, food, the look"}
+  ],
+  conference:[
+    {t:"Lock your venue", s:"Hold the space & room block"},
+    {t:"Launch registration", s:"Let attendees sign up"},
+    {t:"Open sponsorship tiers", s:"Longest lead time — start early"},
+    {t:"Build the agenda", s:"Keynotes, breakouts, breaks"},
+    {t:"Confirm speakers", s:"Reach out while calendars are open"}
+  ],
+  dinner:[
+    {t:"Lock your venue", s:"Confirm the private room"},
+    {t:"Build a simple event page", s:"Share the details"},
+    {t:"Send invites", s:"Track who's coming"},
+    {t:"Finalize the menu", s:"Plus any dietary needs"},
+    {t:"Set the run-of-show", s:"Flow of the evening"}
+  ],
+  party:[
+    {t:"Lock your space", s:"Confirm the spot & date"},
+    {t:"Put up an event page", s:"Quick & shareable"},
+    {t:"Send the invite", s:"Track RSVPs"},
+    {t:"Plan food & drinks", s:"Sets the vibe & budget"},
+    {t:"Add the fun", s:"Music, theme, extras"}
+  ],
+  retreat:[
+    {t:"Lock your venue", s:"Full-buyout lodge or resort"},
+    {t:"Build a trip page", s:"Travel & logistics in one place"},
+    {t:"Confirm the group", s:"Who's coming & travel needs"},
+    {t:"Plan activities", s:"Sessions, meals, downtime"},
+    {t:"Sort travel & rooms", s:"Get everyone there"}
+  ]
+};
+
+let checkState=[];
+
+function enterWorkspace(){
+  const list=CHECKLISTS[curEvent];
+  checkState = list.map((_,i)=> i===0?'active':'locked');
+  renderChecklist();
+  document.getElementById('wsChat').innerHTML='';
+  document.getElementById('tabPiece').style.display='none';
+  setActiveTab('tabGuide');
+  show('s4');
+  startVenueGuide();
+}
+
+function renderChecklist(){
+  const list=CHECKLISTS[curEvent];
+  const host=document.getElementById('checklist');
+  host.innerHTML = list.map((c,i)=>{
+    const st=checkState[i];
+    return `<div class="ci ${st}" data-i="${i}">
+      <div class="box">${st==='done'?'✓':''}</div>
+      <div style="flex:1">
+        <div class="ci-t">${c.t}</div>
+        <div class="ci-s">${c.s}</div>
+        <div class="ci-now">→ You're here</div>
+      </div>
+      <span class="open-ic">↗</span>
+    </div>`;
+  }).join('');
+  const done=checkState.filter(s=>s==='done').length;
+  document.getElementById('shBar').style.width = (done/list.length*100)+'%';
+  document.getElementById('shCount').textContent = `${done} of ${list.length} done`;
+  host.querySelectorAll('.ci').forEach(el=>{
+    const i=+el.dataset.i;
+    el.onclick=()=>openPiece(i);
+  });
+  // keep the mobile plan tab in sync if it's currently shown
+  const mp=document.getElementById('wsPlanMobile');
+  if(mp && mp.style.display==='block') renderMobilePlan();
+}
+
+function wel(cls,html){const d=document.createElement('div');d.className=cls;d.innerHTML=html;return d;}
+function wsay(html, why){
+  const c=document.getElementById('wsChat');
+  const t=wel('wmsg ai','<span style="color:var(--txt-3);font-style:italic">typing…</span>');
+  c.appendChild(t); c.scrollTop=c.scrollHeight;
+  return new Promise(res=>setTimeout(()=>{
+    t.remove();
+    c.appendChild(wel('wmsg ai', html + (why?`<span class="why">↳ ${why}</span>`:'')));
+    c.scrollTop=c.scrollHeight; res();
+  },520));
+}
+
+async function startVenueGuide(){
+  const ctx = answers.who ? `For ${personalWhoPhrase()}${countFromAnswer()?` with around ${countFromAnswer()} guests`:''}, ` : '';
+  await wsay(`Great — your draft's ready, so now I'll guide you through making it real. ${ctx}<b>first job: locking your venue</b>, because your date, capacity, and budget all hang off it. I already know you want ${draftVenueType()}, so let me pull real options that fit. Want me to search now, or set the city first?`,
+    "The workspace opens by naming the first job and WHY — now also reflecting the personalizer answers. Checklist mirrors it.");
+  wopts([
+    {t:"Search venues now", d:"Use my draft city to start", rec:true, go:venueResults},
+    {t:"Set the city first", d:"I'll tell you where", go:askCity},
+    {t:"I already have a venue", d:"Skip the search", go:haveVenue}
+  ]);
+}
+
+function draftVenueType(){
+  const E=EVENTS[curEvent]; const v=E.vibes[curVibes[0]||0]; return E.draft(v).venue.type.toLowerCase();
+}
+
+function wopts(opts){
+  const c=document.getElementById('wsChat');
+  const wrap=wel('wopts','');
+  opts.forEach(o=>{
+    const b=document.createElement('button');
+    b.className='wopt'+(o.rec?' rec':'')+(o.unsure?' unsure':'');
+    b.innerHTML=`<div class="t">${o.t}${o.rec?'<em>· recommended</em>':''}</div>${o.d?`<div class="d">${o.d}</div>`:''}`;
+    b.onclick=()=>{ wrap.remove(); echo(o.t); o.go(); };
+    wrap.appendChild(b);
+  });
+  c.appendChild(wrap); c.scrollTop=c.scrollHeight;
+}
+function echo(t){const c=document.getElementById('wsChat');c.appendChild(wel('wmsg me',t));c.scrollTop=c.scrollHeight;}
+
+async function askCity(){
+  await wsay("Perfect — where should I look? A city or area is plenty, and we can compare a couple if you're torn.",
+    "Location before results — you can't search venues without a place.");
+  wopts([
+    {t:"Use a major nearby city", d:"Easiest for most guests", rec:true, go:venueResults},
+    {t:"Make it a destination", d:"Somewhere worth traveling to", go:venueResults},
+    {t:"I'm not sure yet", d:"Keep my draft location", unsure:true, go:venueResults}
+  ]);
+}
+
+async function haveVenue(){
+  await wsay("Even better — that's the biggest decision already done. I'll mark the venue locked and we'll build everything around it. Let's move to the next step together.",
+    "The have-a-venue path: skip search, advance the checklist, keep guiding.");
+  completeStep(0, "Venue you already have");
+}
+
+async function venueResults(){
+  const sizeCtx = countFromAnswer() ? ` that comfortably fit your ~${countFromAnswer()}` : '';
+  await wsay(`Here are three that match your vibe and budget${sizeCtx}. ${pickName()} is my pick — it fits the look and has availability near your dates.`,
+    "Results reflect the personalizer headcount too — consistent across every event type.");
+  const c=document.getElementById('wsChat');
+  const vs=venueSet();
+  const grid=wel('wvenues','');
+  grid.innerHTML = vs.map((v,i)=>`
+    <div class="wv ${i===0?'pick':''}" data-i="${i}">
+      <div class="wv-art"></div>
+      <div class="wv-b"><div class="wv-n">${v.n}</div><span class="wv-t">${v.t}</span></div>
+    </div>`).join('');
+  c.appendChild(grid); c.scrollTop=c.scrollHeight;
+  grid.querySelectorAll('.wv').forEach(el=>{
+    el.onclick=async()=>{
+      const v=vs[+el.dataset.i];
+      echo(`Lock ${v.n}`);
+      await wsay(`${v.n} it is — sending an availability request now. That usually takes a day or two, but we don't wait around. Here's what's next.`,
+        "Locking advances the checklist and immediately points to the next step — never a dead end.");
+      completeStep(0, v.n);
+    };
+  });
+}
+
+function pickName(){ return venueSet()[0].n; }
+function venueSet(){
+  const sets={
+    wedding:[{n:"Willowmere Estate",t:"★ Our pick"},{n:"Old Oak Barn",t:"81% match"},{n:"Vinland Vineyard",t:"70% match"}],
+    conference:[{n:"Hyatt Regency Center",t:"★ Our pick"},{n:"Marriott Convention",t:"77% match"},{n:"Westin Conference",t:"68% match"}],
+    dinner:[{n:"Massimo's",t:"★ Our pick"},{n:"Papillon",t:"73% match"},{n:"ANANTARA",t:"64% match"}],
+    party:[{n:"The Loft",t:"★ Our pick"},{n:"Skyline Room",t:"75% match"},{n:"The Warehouse",t:"66% match"}],
+    retreat:[{n:"Pinecrest Lodge",t:"★ Our pick"},{n:"Lakeside Resort",t:"79% match"},{n:"Summit House",t:"67% match"}]
+  };
+  return sets[curEvent];
+}
+
+async function completeStep(i, label){
+  checkState[i]='done';
+  if(i+1 < checkState.length) checkState[i+1]='active';
+  renderChecklist();
+  const list=CHECKLISTS[curEvent];
+  if(i+1 < list.length){
+    const nxt=list[i+1];
+    await wsay(`<b>${nxt.t}</b> — ${nextWhy(i+1)} Want to do that now, or take a different step from your checklist?`,
+      "Checklist updates (✓ + progress bar), and the guide proposes the next step while leaving the choice open.");
+    wopts([
+      {t:`Yes, ${nxt.t.toLowerCase()}`, d:nxt.s, rec:true, go:()=>advanceDemo(i+1)},
+      {t:"Show me my whole checklist", d:"I'll pick where to go", go:()=>jumpHint()}
+    ]);
+  } else {
+    await wsay("That's the whole plan in motion — beautifully done. Everything from here is refinement, and I'll keep nudging you toward whatever's most time-sensitive.",
+      "End of the guided spine; the checklist is complete.");
+  }
+}
+
+function nextWhy(i){
+  const whys={
+    wedding:["", "now I can auto-fill your site with the date and location.","this drives your catering and final budget.","so guests can save the date early.","the fun part — and the venue sets the canvas."],
+    conference:["", "so attendees can start signing up right away.","sponsors need the longest runway, so this matters most now.","with the room set, the agenda has a shape.","calendars fill fast, so reach out early."],
+    dinner:["", "a simple page gives guests the details.","so you can track who's coming.","now that the room's set, lock the food.","map the evening so it runs smooth."],
+    party:["", "quick and shareable so people can RSVP.","track who's in.","food and drinks set the whole vibe.","music and theme bring the energy."],
+    retreat:["", "one place for travel and logistics.","confirm who's coming and how they'll get there.","sessions, meals, and downtime.","get everyone there comfortably."]
+  };
+  return whys[curEvent][i]||"let's keep the momentum going.";
+}
+
+async function advanceDemo(i){
+  await wsay(`Love it. In the full product this opens the ${CHECKLISTS[curEvent][i].t.toLowerCase()} tool and walks you through it step by step. For this prototype, I'll mark it done so you can see the checklist move.`,
+    "Subsequent steps are stubbed in this prototype; the point is the guide + checklist rhythm.");
+  completeStep(i, "Done");
+}
+
+function jumpHint(){ wsay("Tap any unlocked item on your checklist to jump there — I'll guide you through whichever you pick.", "Clicks carry the load: the checklist is navigable."); }
+
+function jumpTo(i){
+  if(checkState[i]==='locked') return;
+  checkState = checkState.map((s,idx)=> idx===i ? 'active' : (idx<i?'done':'locked') );
+  renderChecklist();
+  document.getElementById('wsChat').innerHTML='';
+  if(i===0){ startVenueGuide(); }
+  else advanceDemo(i);
+}
+
+/* ----- PLAN PIECE VIEWS: click a checklist item to open the actual piece ----- */
+let lastPieceIdx=null;
+
+function setActiveTab(which){
+  ['tabGuide','tabPlan','tabPiece'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.classList.toggle('active', id===which);
+  });
+  // panels
+  document.getElementById('wsChat').style.display = which==='tabGuide'?'flex':'none';
+  document.getElementById('wsView').style.display = which==='tabPiece'?'block':'none';
+  document.getElementById('wsPlanMobile').style.display = which==='tabPlan'?'block':'none';
+  window.scrollTo({top:0});
+}
+
+function openGuideTab(){ setActiveTab('tabGuide'); }
+
+function openPlanTab(){
+  renderMobilePlan();
+  setActiveTab('tabPlan');
+}
+
+function renderMobilePlan(){
+  const list=CHECKLISTS[curEvent];
+  const done=checkState.filter(s=>s==='done').length;
+  const items=list.map((c,i)=>{
+    const st=checkState[i];
+    return `<div class="ci ${st}" data-i="${i}">
+      <div class="box">${st==='done'?'✓':''}</div>
+      <div style="flex:1">
+        <div class="ci-t">${c.t}</div>
+        <div class="ci-s">${c.s}</div>
+        <div class="ci-now">→ You're here</div>
+      </div>
+      <span class="open-ic">↗</span>
+    </div>`;
+  }).join('');
+  const host=document.getElementById('wsPlanMobile');
+  host.innerHTML = `
+    <div class="mp-head"><div class="mp-title">Your plan</div><div class="mp-count">${done} of ${list.length} done</div></div>
+    <div class="sh-prog"><div class="sh-bar" style="width:${done/list.length*100}%"></div></div>
+    <div class="checklist">${items}</div>
+    <div class="mp-foot">Tap an item to open it. Locked items unlock as you go — but you can always peek.</div>`;
+  host.querySelectorAll('.ci').forEach(el=>{
+    el.onclick=()=>openPiece(+el.dataset.i);
+  });
+}
+
+function reopenPiece(){ if(lastPieceIdx!=null) openPiece(lastPieceIdx); }
+
+function openPiece(i){
+  lastPieceIdx=i;
+  const item=CHECKLISTS[curEvent][i];
+  const tp=document.getElementById('tabPiece');
+  tp.style.display='inline-block'; tp.textContent=item.t;
+  const view=document.getElementById('wsView');
+  view.innerHTML = renderPiece(i, item);
+  setActiveTab('tabPiece');
+}
+
+function renderPiece(i, item){
+  const kind = pieceKind(curEvent, i);
+  let inner='';
+  if(kind==='venue'){
+    const v=venueSet()[0];
+    inner=`<div class="pv-mock">
+      <div class="site-hero" style="background:linear-gradient(135deg,#4c1d95,#9333ea 60%,#c4a0ff)">
+        <h3>${v.n}</h3><p>Your ${EVENTS[curEvent].nm} venue · availability requested</p>
+      </div>
+      <div class="site-body">
+        <div class="site-block"><div class="bt">Status</div><div class="bd">Hold requested — awaiting confirmation</div></div>
+        <div class="site-block"><div class="bt">Why this one</div><div class="bd">Best match for your vibe and draft budget</div></div>
+      </div></div>`;
+  } else if(kind==='website'){
+    inner=`<div class="pv-mock">
+      <div class="site-hero" style="background:linear-gradient(135deg,#3a1d6e,#7c3aed,#c4a0ff)">
+        <h3>You're Invited</h3><p>Auto-filled with your date & location</p>
+      </div>
+      <div class="site-nav"><span>Home</span><span>Details</span><span>RSVP</span><span>Travel</span></div>
+      <div class="site-body">
+        <div class="site-block"><div class="bt">Event details</div><div class="bd">Date, venue, and schedule pulled from your plan</div></div>
+        <div class="site-block"><div class="bt">RSVP block</div><div class="bd">Connects to your registration page</div></div>
+      </div></div>`;
+  } else if(kind==='registration'){
+    inner=`<div class="pv-mock">
+      <div class="reg-row"><div><div class="reg-stat">0</div><div class="reg-lbl">Responses so far</div></div><span class="reg-pill">Not open yet</span></div>
+      <div class="reg-row"><div class="reg-lbl">Attending</div><div class="reg-stat" style="font-size:16px">—</div></div>
+      <div class="reg-row"><div class="reg-lbl">Pending</div><div class="reg-stat" style="font-size:16px">—</div></div>
+      <div class="reg-row"><div class="reg-lbl">Ticketing</div><span class="reg-pill">Optional</span></div>
+    </div>`;
+  } else if(kind==='budget'){
+    const cards=EVENTS[curEvent].draft(EVENTS[curEvent].vibes[curVibes[0]||0]).cards;
+    const bud=(cards.find(c=>c.lbl==='Budget')||{}).val||'—';
+    inner=`<div class="pv-mock"><div class="bud-bars">
+      <div class="bud-line"><div class="bud-top"><span class="bl">Venue</span><span class="bv">~45%</span></div><div class="bud-track"><div class="bud-fill" style="width:45%"></div></div></div>
+      <div class="bud-line"><div class="bud-top"><span class="bl">Food & drink</span><span class="bv">~30%</span></div><div class="bud-track"><div class="bud-fill" style="width:30%"></div></div></div>
+      <div class="bud-line"><div class="bud-top"><span class="bl">AV / rentals</span><span class="bv">~15%</span></div><div class="bud-track"><div class="bud-fill" style="width:15%"></div></div></div>
+      <div class="bud-line"><div class="bud-top"><span class="bl">Buffer</span><span class="bv">~10%</span></div><div class="bud-track"><div class="bud-fill" style="width:10%"></div></div></div>
+    </div></div>
+    <p class="pv-sub" style="margin-top:12px">Draft total <b style="color:var(--txt)">${bud}</b> — updates as you lock real numbers.</p>`;
+  } else {
+    inner=`<div class="pv-mock"><div class="pv-empty">
+      <div class="ico">✦</div>
+      <p>This is where your <b style="color:var(--txt)">${item.t.toLowerCase()}</b> will live. ${checkState[i]==='locked'?"Joy will open it for real once you've finished the steps before it — but here's a peek at what's coming.":"Joy will build this with you step by step."}</p>
+    </div></div>`;
+  }
+  return `<div class="pv-head">${item.t}</div>
+    <div class="pv-sub">${item.s}</div>
+    ${inner}
+    <button class="pv-back" onclick="openGuideTab()">← Back to Joy's guide</button>`;
+}
+
+function pieceKind(ev, i){
+  const t=CHECKLISTS[ev][i].t.toLowerCase();
+  if(t.includes('venue')||t.includes('space')) return 'venue';
+  if(t.includes('website')||t.includes('event page')||t.includes('trip page')) return 'website';
+  if(t.includes('registration')||t.includes('rsvp')||t.includes('invite')) return 'registration';
+  if(t.includes('budget')) return 'budget';
+  return 'other';
+}
+
+function freeform(){
+  const v=document.getElementById('ff').value.toLowerCase();
+  let ev='party';
+  if(v.includes('wedding')||v.includes('marry')) ev='wedding';
+  else if(v.includes('conf')||v.includes('summit')||v.includes('kickoff')) ev='conference';
+  else if(v.includes('dinner')) ev='dinner';
+  else if(v.includes('retreat')||v.includes('off-site')||v.includes('offsite')) ev='retreat';
+  startEvent(ev);
+}
+
+/* wire type tiles */
+document.querySelectorAll('#types .type').forEach(t=>{
+  t.onclick=()=>startEvent(t.dataset.ev);
+});
+document.getElementById('ff').addEventListener('keydown',e=>{if(e.key==='Enter')freeform();});
+</script>
+</body>
+</html>
